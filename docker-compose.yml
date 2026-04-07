@@ -1,0 +1,46 @@
+# --- docker-compose.yml ---
+version: '3.8'
+
+services:
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    # ↑ Zookeeper manages the Kafka cluster's metadata — which brokers
+    # exist, where topics live, which consumer is reading what.
+    # Kafka requires it to run. Confluent's image is the industry standard.
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      # ↑ The port Kafka uses to talk to Zookeeper internally.
+      ZOOKEEPER_TICK_TIME: 2000
+      # ↑ Zookeeper's heartbeat interval in milliseconds.
+      # Controls how quickly it detects a failed node.
+    ports:
+      - '2181:2181'
+      # ↑ Maps container port 2181 to your Mac's port 2181.
+      # Format is 'host:container'.
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    depends_on:
+      - zookeeper
+      # ↑ Tells Docker to start Zookeeper before Kafka.
+      # Kafka cannot start without Zookeeper already running.
+    ports:
+      - '9092:9092'
+      # ↑ 9092 is Kafka's default broker port.
+      # Your Python producer and consumer will connect here.
+    environment:
+      KAFKA_BROKER_ID: 1
+      # ↑ Unique ID for this broker. Matters in multi-broker clusters.
+      # We only have one broker, so 1 is fine.
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      # ↑ Tells Kafka where to find Zookeeper.
+      # 'zookeeper' resolves to the Zookeeper container via Docker's
+      # internal DNS — no IP address needed.
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      # ↑ The address Kafka broadcasts to clients connecting from
+      # outside Docker (i.e., your Python code on your Mac).
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      # ↑ Kafka's internal bookkeeping topic needs a replication factor.
+      # Default is 3 (for a 3-broker cluster). We have 1 broker,
+      # so this must be set to 1 or Kafka will refuse to start.
